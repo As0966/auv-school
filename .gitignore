@@ -6,3 +6,5 @@ build/
 dist/
 .venv/
 *.png
+*.gif
+episodes/**/*.csv

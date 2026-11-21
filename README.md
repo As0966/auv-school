@@ -4,7 +4,7 @@ Open code for **DepthLoop: The AUV School**, a free video course on underwater r
 
 Every episode has runnable code here. Every controller is tested on the same vehicle, the same missions and the same scorecard, so results can be compared and reproduced.
 
-> **Status: early start (v0.1).** The simulator core, one vehicle, PID depth hold and the scorecard work today. Everything else in the roadmap is planned, not built. The vehicle parameters are illustrative and will be replaced with published, openly licensed values before the benchmark is frozen.
+> **Status: early start (v0.1).** The simulator core, one vehicle, PID depth hold, the buoyancy and stability episode and the scorecard work today. Everything else in the roadmap is planned, not built. The vehicle parameters are illustrative and will be replaced with published, openly licensed values before the benchmark is frozen.
 
 ## Quick start
 
@@ -14,6 +14,7 @@ cd auv-school
 pip install -e .
 python episodes/L4-02-pid-depth-hold/run.py          # prints the scorecard
 python episodes/L4-02-pid-depth-hold/run.py --plot   # also saves depth.png (needs matplotlib)
+python episodes/L1-02-buoyancy/run.py --plot          # flip and self-righting runs, saves roll.png
 pytest                                                # run the checks
 ```
 
@@ -24,10 +25,12 @@ You only need Python 3.9 or newer and NumPy. ROS 2 and Gazebo are used later for
 | Path | What it is |
 | --- | --- |
 | `auvschool/sim/` | 6-DOF simulator in Fossen's vector-matrix form: mass, Coriolis, damping, restoring forces, kinematics, RK4 integration |
+| `auvschool/sim/hydrostatics.py` | Righting stiffness, net buoyancy, and `add_payload` for bolting weights or foam onto a vehicle |
 | `auvschool/vehicles/hover8.py` | Eight-thruster hover vehicle (illustrative parameters) |
 | `auvschool/allocation/` | Thruster allocation by pseudo-inverse |
 | `auvschool/control/` | PID with output limits and anti-windup |
 | `auvschool/benchmark/` | Scorecard: RMS error, overshoot, settling time, control energy, saturation |
+| `episodes/L1-02-buoyancy/` | Why robots flip: stock, top-heavy and fixed vehicles released with thrusters off |
 | `episodes/L4-02-pid-depth-hold/` | Mission M1: dive from 1 m to 5 m under PID control |
 | `tests/` | Checks on the physics (energy, symmetry, stability) and on the episode |
 
@@ -46,6 +49,7 @@ Based on the marine craft model in T. I. Fossen, *Handbook of Marine Craft Hydro
 
 - [x] Simulator core and first vehicle
 - [x] PID depth hold with scorecard
+- [x] Static stability: flip and self-righting runs (episode 1.2)
 - [ ] Six benchmark missions (depth step, station keeping, figure-eight, wrong model, thruster failure, bad sensors)
 - [ ] Vehicle fleet: 6-thruster, torpedo, hybrid, glider, work-class
 - [ ] Ocean current and relative velocity
