@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auvschool"
+version = "0.1.0"
+description = "Open code for the DepthLoop underwater robotics course"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+plot = ["matplotlib"]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["auvschool*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

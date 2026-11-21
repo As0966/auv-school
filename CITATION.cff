@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "AUV School: open code for the DepthLoop underwater robotics course"
+authors:
+  - family-names: "Ligaba Janka"
+    given-names: "Bayisa"
+version: 0.1.0
+date-released: 2026-11-21
+url: "https://github.com/As0966/auv-school"
+license: MIT
