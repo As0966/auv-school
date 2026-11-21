@@ -44,3 +44,11 @@ def test_episode_top_heavy_flips_and_the_fix_rights_it():
     assert runs["top-heavy"]["stiffness"] < 0 and abs(abs(runs["top-heavy"]["final"]) - 180) < 10
     assert runs["fixed"]["stiffness"] > 0 and abs(runs["fixed"]["final"]) < 5
     assert abs(runs["fixed"]["net"]) < 5                         # the fix also restores the trim
+
+
+def test_fleet_check_torpedo_needs_its_battery_low():
+    runs = {r["name"]: r for r in load_episode().main()}
+    assert runs["torpedo"]["stiffness"] > 0 and abs(runs["torpedo"]["final"]) < 5
+    assert runs["torpedo+bar"]["stiffness"] > 0 and abs(runs["torpedo+bar"]["final"]) < 5
+    assert runs["torpedo+bar"]["stiffness"] < runs["torpedo"]["stiffness"]
+    assert runs["battery-up"]["stiffness"] < 0 and abs(abs(runs["battery-up"]["final"]) - 180) < 10

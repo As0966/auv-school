@@ -27,10 +27,11 @@ You only need Python 3.9 or newer and NumPy. ROS 2 and Gazebo are used later for
 | `auvschool/sim/` | 6-DOF simulator in Fossen's vector-matrix form: mass, Coriolis, damping, restoring forces, kinematics, RK4 integration |
 | `auvschool/sim/hydrostatics.py` | Righting stiffness, net buoyancy, and `add_payload` for bolting weights or foam onto a vehicle |
 | `auvschool/vehicles/hover8.py` | Eight-thruster hover vehicle (illustrative parameters) |
+| `auvschool/vehicles/torpedo.py` | Torpedo-shaped vehicle for fleet checks (illustrative parameters) |
 | `auvschool/allocation/` | Thruster allocation by pseudo-inverse |
 | `auvschool/control/` | PID with output limits and anti-windup |
 | `auvschool/benchmark/` | Scorecard: RMS error, overshoot, settling time, control energy, saturation |
-| `episodes/L1-02-buoyancy/` | Why robots flip: stock, top-heavy and fixed vehicles released with thrusters off |
+| `episodes/L1-02-buoyancy/` | Why robots flip: stock, top-heavy and fixed vehicles released with thrusters off, plus a torpedo fleet check |
 | `episodes/L4-02-pid-depth-hold/` | Mission M1: dive from 1 m to 5 m under PID control |
 | `tests/` | Checks on the physics (energy, symmetry, stability) and on the episode |
 

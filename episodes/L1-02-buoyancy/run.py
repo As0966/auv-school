@@ -7,14 +7,21 @@ Three unpowered runs of the same vehicle, thrusters off, starting at 5 m depth:
   fixed      the same light bar, plus foam on top and a little lead underneath,
              let go from 60 degrees. It rights itself again.
 
+Fleet check, the same idea on a torpedo-shaped vehicle:
+
+  torpedo      as built, battery low in the hull, let go from 60 degrees.
+  torpedo+bar  the same 2 kg light bar on its back, let go from 60 degrees.
+  battery-up   built with the battery above the centreline, nudged by 5 degrees.
+
 Run from the repository root:
     python episodes/L1-02-buoyancy/run.py
-    python episodes/L1-02-buoyancy/run.py --plot      # saves roll.png (needs matplotlib)
-    python episodes/L1-02-buoyancy/run.py --animate   # saves flip.gif (needs matplotlib and pillow)
+    python episodes/L1-02-buoyancy/run.py --plot      # saves roll.png and roll_fleet.png (needs matplotlib)
+    python episodes/L1-02-buoyancy/run.py --animate   # saves flip.gif and flip_fleet.gif (needs matplotlib and pillow)
     python episodes/L1-02-buoyancy/run.py --csv       # saves roll.csv for your own plots
 
-The vehicle numbers are illustrative (see auvschool/vehicles/hover8.py).
+The vehicle numbers are illustrative (see auvschool/vehicles).
 """
+import dataclasses
 import pathlib
 import sys
 
@@ -22,7 +29,7 @@ import numpy as np
 
 from auvschool.sim import simulate
 from auvschool.sim.hydrostatics import add_payload, net_buoyancy, righting_stiffness
-from auvschool.vehicles import hover8
+from auvschool.vehicles import hover8, torpedo
 
 DT, T_END, DEPTH = 0.02, 20.0, 5.0
 HERE = pathlib.Path(__file__).parent
@@ -42,6 +49,13 @@ def build():
     return [(stock, 60.0), (top_heavy, 5.0), (fixed, 60.0)]
 
 
+def build_fleet():
+    stock = torpedo()
+    with_bar = add_payload(stock, **{**LIGHT_BAR, "pos": [0.0, 0.0, -0.12]}, name="torpedo+bar")
+    battery_up = dataclasses.replace(stock, name="battery-up", r_g=-np.asarray(stock.r_g))
+    return [(stock, 60.0), (with_bar, 60.0), (battery_up, 5.0)]
+
+
 def settle_time(t, roll_deg, band=5.0):
     """First time after which roll stays within +/-band degrees of upright (nan if never)."""
     outside = np.abs(roll_deg) > band
@@ -50,12 +64,13 @@ def settle_time(t, roll_deg, band=5.0):
     return float(t[np.nonzero(outside)[0][-1] + 1]) if outside.any() else 0.0
 
 
-def main(plot=False, animate=False, csv=False):
-    def off(t, eta, nu):                           # thrusters off for the whole run
+def release(cases):
+    """Let each vehicle go at its starting roll angle with the thrusters off."""
+    def off(t, eta, nu):
         return np.zeros(6)
 
     runs = []
-    for vehicle, roll0 in build():
+    for vehicle, roll0 in cases:
         log = simulate(vehicle, off, T_END, DT, eta0=[0, 0, DEPTH, np.radians(roll0), 0, 0])
         roll = np.degrees(log["eta"][:, 3])
         runs.append(dict(
@@ -63,26 +78,41 @@ def main(plot=False, animate=False, csv=False):
             stiffness=righting_stiffness(vehicle), net=net_buoyancy(vehicle), roll0=roll0,
             final=roll[-1], peak=np.abs(roll).max(), settle=settle_time(log["t"], roll),
         ))
+    return runs
 
-    print("Episode 1.2: thrusters off, released at 5 m depth")
-    print(f"  {'run':10s} {'k (N m/rad)':>12s} {'net buoy (N)':>13s} {'start':>7s} {'peak':>7s} {'final':>7s} {'upright after (s)':>18s}")
+
+def report(title, runs):
+    print(title)
+    print(f"  {'run':12s} {'k (N m/rad)':>12s} {'net buoy (N)':>13s} {'start':>7s} {'peak':>7s} {'final':>7s} {'upright after (s)':>18s}")
     for r in runs:
-        print(f"  {r['name']:10s} {r['stiffness']:12.2f} {r['net']:13.2f} {r['roll0']:6.0f}° {r['peak']:6.0f}° {r['final']:6.0f}° {r['settle']:18.1f}")
+        print(f"  {r['name']:12s} {r['stiffness']:12.2f} {r['net']:13.2f} {r['roll0']:6.0f}° {r['peak']:6.0f}° {round(r['final']) + 0:6d}° {r['settle']:18.1f}")
+
+
+def main(plot=False, animate=False, csv=False):
+    runs, fleet = release(build()), release(build_fleet())
+    report("Episode 1.2: thrusters off, released at 5 m depth", runs)
+    report("Fleet check: torpedo-shaped vehicle", fleet)
     print("  k is the righting stiffness z_g W - z_b B. Positive rights the vehicle, negative flips it.")
 
     if csv:
-        table = np.column_stack([runs[0]["t"]] + [r["roll"] for r in runs])
-        np.savetxt(HERE / "roll.csv", table, delimiter=",", fmt="%.4f", comments="",
-                   header="t_s," + ",".join(f"roll_deg_{r['name']}" for r in runs))
-        print("saved", HERE / "roll.csv")
+        for name, group in (("roll.csv", runs), ("roll_fleet.csv", fleet)):
+            table = np.column_stack([group[0]["t"]] + [r["roll"] for r in group])
+            np.savetxt(HERE / name, table, delimiter=",", fmt="%.4f", comments="",
+                       header="t_s," + ",".join(f"roll_deg_{r['name']}" for r in group))
+            print("saved", HERE / name)
     if plot or animate:
         import matplotlib
         matplotlib.use("Agg")
     if plot:
-        save_plot(runs)
+        save_plot(runs, "roll.png")
+        save_plot(fleet, "roll_fleet.png")
     if animate:
-        save_animation(runs)
-    return runs
+        box = np.array([[-0.25, -0.12], [0.25, -0.12], [0.25, 0.12], [-0.25, 0.12], [-0.25, -0.12]])   # y, z
+        a = np.linspace(0, 2 * np.pi, 61)
+        circle = 0.095 * np.column_stack([np.cos(a), np.sin(a)])
+        save_animation(runs, "flip.gif", hull=box, mast=np.array([[0.0, -0.12], [0.0, -0.20]]), lim=0.4)
+        save_animation(fleet, "flip_fleet.gif", hull=circle, mast=np.array([[0.0, -0.095], [0.0, -0.16]]), lim=0.25, scale=2)
+    return runs + fleet
 
 
 def _style(ax):
@@ -92,7 +122,7 @@ def _style(ax):
         s.set_color(GREY)
 
 
-def save_plot(runs):
+def save_plot(runs, filename):
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(9.6, 5.4), facecolor=NAVY)      # 16:9, drops straight into the edit
     _style(ax)
@@ -108,24 +138,22 @@ def save_plot(runs):
     ax.set_ylabel("roll angle (degrees)", color="white")
     ax.legend(facecolor=NAVY, edgecolor=GREY, labelcolor="white", loc="center right")
     fig.tight_layout()
-    fig.savefig(HERE / "roll.png", dpi=200, facecolor=NAVY)
-    print("saved", HERE / "roll.png")
+    fig.savefig(HERE / filename, dpi=200, facecolor=NAVY)
+    print("saved", HERE / filename)
 
 
-def save_animation(runs, fps=25):
-    """Front view of the three runs side by side: body, centre of gravity (amber), centre of buoyancy (cyan)."""
+def save_animation(runs, filename, hull, mast, lim, scale=3, fps=25):
+    """Front view of the runs side by side: body, centre of gravity (amber), centre of buoyancy (cyan)."""
     import matplotlib.pyplot as plt
     from matplotlib.animation import FuncAnimation, PillowWriter
     fig, axes = plt.subplots(1, 3, figsize=(9.6, 3.9), facecolor=NAVY)
     step = int(round(1 / (fps * DT)))
-    hull = np.array([[-0.25, -0.12], [0.25, -0.12], [0.25, 0.12], [-0.25, 0.12], [-0.25, -0.12]])   # y, z
-    mast = np.array([[0.0, -0.12], [0.0, -0.20]])                                                 # shows which way is up
     art = []
     for ax, r in zip(axes, runs):
         _style(ax)
         ax.set_aspect("equal")
-        ax.set_xlim(-0.4, 0.4)
-        ax.set_ylim(0.4, -0.4)                     # z points down
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(lim, -lim)                     # z points down
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_title(r["name"], color="white")
@@ -133,7 +161,7 @@ def save_animation(runs, fps=25):
         top, = ax.plot([], [], color="white", lw=2)
         cg, = ax.plot([], [], "o", color=AMBER, ms=9)
         cb, = ax.plot([], [], "o", color=CYAN, ms=9)
-        label = ax.text(0, 0.36, "", color="white", ha="center")
+        label = ax.text(0, 0.9 * lim, "", color="white", ha="center")
         art.append((body, top, cg, cb, label))
 
     def frame(i):
@@ -144,15 +172,15 @@ def save_animation(runs, fps=25):
             p, m = hull @ R.T, mast @ R.T
             body.set_data(p[:, 0], p[:, 1])
             top.set_data(m[:, 0], m[:, 1])
-            # the CG and CB offsets are drawn 3x larger than real so they can be seen
-            g, b = R @ (3 * r["vehicle"].r_g[1:]), R @ (3 * r["vehicle"].r_b[1:])
+            # the CG and CB offsets are drawn larger than real (scale) so they can be seen
+            g, b = R @ (scale * r["vehicle"].r_g[1:]), R @ (scale * r["vehicle"].r_b[1:])
             cg.set_data([g[0]], [g[1]])
             cb.set_data([b[0]], [b[1]])
             label.set_text(f"t = {r['t'][k]:4.1f} s   roll {round(r['roll'][k]) + 0:4d}°")
 
     anim = FuncAnimation(fig, frame, frames=len(runs[0]["t"]) // step, blit=False)
-    anim.save(HERE / "flip.gif", writer=PillowWriter(fps=fps), savefig_kwargs={"facecolor": NAVY})
-    print("saved", HERE / "flip.gif")
+    anim.save(HERE / filename, writer=PillowWriter(fps=fps), savefig_kwargs={"facecolor": NAVY})
+    print("saved", HERE / filename)
 
 
 if __name__ == "__main__":
